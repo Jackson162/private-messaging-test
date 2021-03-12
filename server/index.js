@@ -15,6 +15,11 @@ const { InMemoryMessageStore } = require("./messageStore");
 const messageStore = new InMemoryMessageStore();
 
 io.use((socket, next) => {
+  console.log('通過use')
+  socket.onAny((event, args) => {
+    console.log(`client emit ${event}`)
+  });
+  console.log(socket.handshake.auth)
   const sessionID = socket.handshake.auth.sessionID;
   if (sessionID) {
     const session = sessionStore.findSession(sessionID);
@@ -36,6 +41,7 @@ io.use((socket, next) => {
 });
 
 io.on("connection", (socket) => {
+  console.log('connection')
   // persist session
   sessionStore.saveSession(socket.sessionID, {
     userID: socket.userID,
@@ -84,17 +90,20 @@ io.on("connection", (socket) => {
 
   // forward the private message to the right recipient (and to other tabs of the sender)
   socket.on("private message", ({ content, to }) => {
+    console.log('private message')
     const message = {
       content,
       from: socket.userID,
       to,
     };
     socket.to(to).to(socket.userID).emit("private message", message);
+    // socket.to(to).emit("private message", message);
     messageStore.saveMessage(message);
   });
 
   // notify users upon disconnection
   socket.on("disconnect", async () => {
+    console.log('disconnect')
     const matchingSockets = await io.in(socket.userID).allSockets();
     const isDisconnected = matchingSockets.size === 0;
     if (isDisconnected) {
